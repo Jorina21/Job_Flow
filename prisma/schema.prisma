@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationSource {
+  LinkedIn
+  Indeed
+  Referral
+  CompanySite
+  Recruiter
+  Other
+}
+
+enum ApplicationStatus {
+  Draft
+  Applied
+  OA
+  PhoneScreen
+  TechnicalInterview
+  Onsite
+  Offer
+  Rejected
+  Withdrawn
+}
+
+enum Priority {
+  Low
+  Medium
+  High
+}
+
+enum InterviewType {
+  RecruiterCall
+  PhoneScreen
+  Technical
+  Behavioral
+  Onsite
+  FinalRound
+  Other
+}
+
+enum InterviewOutcome {
+  Pending
+  Passed
+  Failed
+  NoShow
+  Rescheduled
+}
+
+enum ActivityActionType {
+  APPLICATION_CREATED
+  APPLICATION_UPDATED
+  STATUS_CHANGED
+  FOLLOWUP_CHANGED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_UPDATED
+  INTERVIEW_DELETED
+  NOTE_UPDATED
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  fullName     String
+  passwordHash String
+  applications JobApplication[]
+  activities   ActivityLog[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([email])
+}
+
+model JobApplication {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName       String
+  roleTitle         String
+  location          String?
+  jobUrl            String?
+  source            ApplicationSource @default(Other)
+  status            ApplicationStatus @default(Draft)
+
+  salaryMin         Int?
+  salaryMax         Int?
+  compensationNotes String?
+
+  resumeVersion     String?
+  coverLetterUsed   Boolean?          @default(false)
+  priority          Priority          @default(Medium)
+
+  appliedDate       DateTime?
+  nextFollowUpDate  DateTime?
+  notes             String?
+
+  interviews        InterviewEvent[]
+  activities        ActivityLog[]
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([source])
+  @@index([priority])
+  @@index([appliedDate])
+  @@index([createdAt])
+}
+
+model InterviewEvent {
+  id              String          @id @default(cuid())
+  applicationId   String
+  application     JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  type            InterviewType
+  scheduledAt     DateTime
+  durationMinutes Int?
+  meetingLink     String?
+  location        String?
+  interviewerNames String?
+  notes           String?
+  outcome         InterviewOutcome @default(Pending)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+}
+
+model ActivityLog {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  applicationId String?
+  application   JobApplication?  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  actionType    ActivityActionType
+  message       String
+  createdAt     DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([applicationId, createdAt])
+}
